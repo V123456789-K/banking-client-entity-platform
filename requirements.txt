@@ -1,0 +1,13 @@
+pandas
+numpy
+sqlalchemy
+psycopg2-binary
+rapidfuzz
+recordlinkage
+requests
+python-dotenv
+openpyxl
+pytest
+great-expectations
+streamlit
+plotly
