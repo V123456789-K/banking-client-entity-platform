@@ -1,138 +1,58 @@
-import sqlite3
-from pathlib import Path
-
 import pandas as pd
 
-from src.config import DATABASE_PATH, RAW_DATA_DIR
+from src.config import RAW_DATA_DIR
 
 
-CRM_FILE = RAW_DATA_DIR / "crm_entities.csv"
+def generate_crm_data() -> None:
+    RAW_DATA_DIR.mkdir(parents=True, exist_ok=True)
 
-
-def get_or_create_source_system(conn: sqlite3.Connection) -> int:
-    cursor = conn.cursor()
-
-    cursor.execute(
-        """
-        INSERT OR IGNORE INTO source_systems (
-            source_system_name,
-            source_type
-        )
-        VALUES (?, ?)
-        """,
-        ("CRM", "Internal Client Relationship Management"),
-    )
-
-    cursor.execute(
-        """
-        SELECT source_system_id
-        FROM source_systems
-        WHERE source_system_name = ?
-        """,
-        ("CRM",),
-    )
-
-    result = cursor.fetchone()
-
-    if result is None:
-        raise RuntimeError("CRM source system could not be created.")
-
-    return result[0]
-
-
-def load_crm_entities() -> None:
-    if not CRM_FILE.exists():
-        raise FileNotFoundError(
-            f"CRM file not found: {CRM_FILE}"
-        )
-
-    df = pd.read_csv(CRM_FILE)
-
-    required_columns = [
-        "source_record_id",
-        "legal_name",
-        "country",
-        "industry",
-        "registration_number",
-        "lei",
-        "risk_rating",
+    records = [
+        {
+            "source_record_id": "CRM001",
+            "legal_name": "ABC Technologies Pvt Ltd",
+            "country": "India",
+            "industry": "Technology",
+            "registration_number": "U12345KA2020PTC001",
+            "lei": None,
+            "risk_rating": "LOW",
+        },
+        {
+            "source_record_id": "CRM002",
+            "legal_name": "ABC Technologies Private Limited",
+            "country": "India",
+            "industry": "Technology",
+            "registration_number": "U12345KA2020PTC001",
+            "lei": None,
+            "risk_rating": "LOW",
+        },
+        {
+            "source_record_id": "CRM003",
+            "legal_name": "XYZ Manufacturing Ltd",
+            "country": "India",
+            "industry": "Manufacturing",
+            "registration_number": "U99887MH2018PLC888",
+            "lei": "123456789XYZ",
+            "risk_rating": "MEDIUM",
+        },
+        {
+            "source_record_id": "CRM004",
+            "legal_name": "Global Finance Holdings",
+            "country": "Singapore",
+            "industry": "Financial Services",
+            "registration_number": "SG20211234",
+            "lei": None,
+            "risk_rating": "HIGH",
+        },
     ]
 
-    missing_columns = [
-        column
-        for column in required_columns
-        if column not in df.columns
-    ]
+    dataframe = pd.DataFrame(records)
 
-    if missing_columns:
-        raise ValueError(
-            f"Missing required columns: {missing_columns}"
-        )
+    output_path = RAW_DATA_DIR / "crm_entities.csv"
+    dataframe.to_csv(output_path, index=False)
 
-    conn = sqlite3.connect(DATABASE_PATH)
-
-    try:
-        conn.execute("PRAGMA foreign_keys = ON")
-
-        source_system_id = get_or_create_source_system(conn)
-
-        inserted_count = 0
-        skipped_count = 0
-
-        for _, row in df.iterrows():
-            existing_record = conn.execute(
-                """
-                SELECT raw_entity_id
-                FROM raw_entities
-                WHERE source_system_id = ?
-                  AND source_record_id = ?
-                """,
-                (
-                    source_system_id,
-                    row["source_record_id"],
-                ),
-            ).fetchone()
-
-            if existing_record:
-                skipped_count += 1
-                continue
-
-            conn.execute(
-                """
-                INSERT INTO raw_entities (
-                    source_system_id,
-                    source_record_id,
-                    legal_name,
-                    lei,
-                    registration_number,
-                    industry,
-                    country,
-                    risk_rating
-                )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                """,
-                (
-                    source_system_id,
-                    row["source_record_id"],
-                    row["legal_name"],
-                    None if pd.isna(row["lei"]) else row["lei"],
-                    row["registration_number"],
-                    row["industry"],
-                    row["country"],
-                    row["risk_rating"],
-                ),
-            )
-
-            inserted_count += 1
-
-        conn.commit()
-
-        print(f"CRM records inserted: {inserted_count}")
-        print(f"CRM records skipped: {skipped_count}")
-
-    finally:
-        conn.close()
+    print(f"CRM records generated: {len(dataframe)}")
+    print(f"Saved: {output_path}")
 
 
 if __name__ == "__main__":
-    load_crm_entities()
+    generate_crm_data()
