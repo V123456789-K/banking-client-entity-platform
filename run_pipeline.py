@@ -1,37 +1,39 @@
-from src.database.init_db import initialize_database
-from src.ingestion.generate_crm_data import generate_crm_data
-from src.ingestion.load_crm import load_crm_entities
-from src.standardization.entity_standardizer import standardize_entities
-from src.entity_resolution.match_entities import match_entities
-from src.data_quality.run_quality_checks import run_quality_checks
-from src.golden_record.create_golden_records import create_golden_records
-from src.reports.generate_reports import generate_reports
+import subprocess
+import sys
+
+
+PIPELINE_STEPS = [
+    ("Initialize database", "src.database.init_db"),
+    ("Generate CRM data", "src.ingestion.generate_crm_data"),
+    ("Load CRM entities", "src.ingestion.load_crm"),
+    ("Standardize entities", "src.standardization.entity_standardizer"),
+    ("Match entities", "src.entity_resolution.match_entities"),
+    ("Run data-quality checks", "src.data_quality.run_quality_checks"),
+    ("Create golden records", "src.golden_record.create_golden_records"),
+    ("Generate reports", "src.reports.generate_reports"),
+]
+
+
+def run_module(step_name: str, module_name: str) -> None:
+    print(f"\n{'=' * 60}")
+    print(f"Running: {step_name}")
+    print(f"Module: {module_name}")
+    print("=" * 60)
+
+    result = subprocess.run(
+        [sys.executable, "-m", module_name],
+        check=False,
+    )
+
+    if result.returncode != 0:
+        raise RuntimeError(
+            f"Pipeline stopped because '{step_name}' failed."
+        )
 
 
 def run_pipeline() -> None:
-    print("\n1. Initializing database")
-    initialize_database()
-
-    print("\n2. Generating CRM data")
-    generate_crm_data()
-
-    print("\n3. Loading CRM entities")
-    load_crm_entities()
-
-    print("\n4. Standardizing entities")
-    standardize_entities()
-
-    print("\n5. Matching entities")
-    match_entities()
-
-    print("\n6. Running data-quality checks")
-    run_quality_checks()
-
-    print("\n7. Creating golden records")
-    create_golden_records()
-
-    print("\n8. Generating reports")
-    generate_reports()
+    for step_name, module_name in PIPELINE_STEPS:
+        run_module(step_name, module_name)
 
     print("\nPipeline completed successfully.")
 
